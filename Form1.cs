@@ -31,11 +31,24 @@ namespace Test
             _calculating = new Thread(new ParameterizedThreadStart(_searcher.Search));
             label4.Text = "";
             label5.Text = "";
-            StreamReader streamReader = new StreamReader("C:/Users/Mikhail/source/repos/Test/LastSearch.txt");
+            StreamReader streamReader = null;
+            try
+            {
+                streamReader = new StreamReader("C:/Users/Mikhail/source/repos/Test/LastSearch.txt");
+            }
+            catch (FileNotFoundException)
+            {
+                StreamWriter streamWriter = new StreamWriter("C:/Users/Mikhail/source/repos/Test/LastSearch.txt");
+                streamWriter.Close();
+                streamReader = new StreamReader("C:/Users/Mikhail/source/repos/Test/LastSearch.txt");
+            }
             string lastSearch = streamReader.ReadToEnd();
             streamReader.Close();
-            textBox1.Text = lastSearch.Remove(lastSearch.LastIndexOf("\r\n"));
-            textBox2.Text = lastSearch.Remove(0,lastSearch.LastIndexOf("\r\n")+2);
+            if (lastSearch != "")
+            {
+                textBox1.Text = lastSearch.Remove(lastSearch.LastIndexOf("\r\n"));
+                textBox2.Text = lastSearch.Remove(0, lastSearch.LastIndexOf("\r\n") + 2);
+            }
         }
 
         private void _searcher_FilesFounded(int arg1, int arg2)
