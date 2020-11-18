@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.IO;
 using System.Threading;
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace Test
 {
@@ -18,6 +19,8 @@ namespace Test
     {
         private Searcher _searcher;
         private Thread _calculating;
+        private Stopwatch stopwatch = new Stopwatch();
+        FileStream fileStream = null;
         public Form1()
         {
             this.SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
@@ -31,30 +34,24 @@ namespace Test
             _calculating = new Thread(new ParameterizedThreadStart(_searcher.Search));
             label4.Text = "";
             label5.Text = "";
-            StreamReader streamReader = null;
-            try
-            {
-                streamReader = new StreamReader("C:/Users/Mikhail/source/repos/Test/LastSearch.txt");
-            }
-            catch (FileNotFoundException)
-            {
-                StreamWriter streamWriter = new StreamWriter("C:/Users/Mikhail/source/repos/Test/LastSearch.txt");
-                streamWriter.Close();
-                streamReader = new StreamReader("C:/Users/Mikhail/source/repos/Test/LastSearch.txt");
-            }
+            label8.Text = TimeSpan.Zero.ToString();
+            fileStream = new FileStream("C:/Users/Mikhail/source/repos/Test/LastSearch.txt",FileMode.OpenOrCreate);
+            StreamReader streamReader = new StreamReader(fileStream);
             string lastSearch = streamReader.ReadToEnd();
             streamReader.Close();
             if (lastSearch != "")
             {
-                textBox1.Text = lastSearch.Remove(lastSearch.LastIndexOf("\r\n"));
-                textBox2.Text = lastSearch.Remove(0, lastSearch.LastIndexOf("\r\n") + 2);
+                textBox1.Text = lastSearch.Remove(lastSearch.IndexOf("\r\n"));
+                textBox2.Text = lastSearch.Remove(0, lastSearch.IndexOf("\r\n") + 2).Replace("\r\n","");
             }
         }
 
         private void _searcher_FilesFounded(int arg1, int arg2)
         {
+            
             Action action = () =>
             {
+                label8.Text = stopwatch.Elapsed.ToString();
                 if (label4.Text == "")
                     label4.Text = arg1.ToString();
                 else
@@ -77,6 +74,7 @@ namespace Test
         {
             if (Directory.Exists(textBox1.Text))
             {
+                
                 Object inputData;
                 Regex regex;
                 treeView1.Nodes.Clear();
@@ -94,7 +92,9 @@ namespace Test
                     MessageBox.Show("Неверный формат регулярного выражения");
                     return;
                 }
-                StreamWriter streamWriter = new StreamWriter("C:/Users/Mikhail/source/repos/Test/LastSearch.txt", false);
+                fileStream.Close();
+                fileStream = new FileStream("C:/Users/Mikhail/source/repos/Test/LastSearch.txt", FileMode.Create);
+                StreamWriter streamWriter = new StreamWriter(fileStream);
                 streamWriter.WriteLine(textBox1.Text);
                 streamWriter.WriteLine(textBox2.Text);
                 streamWriter.Close();
@@ -102,7 +102,7 @@ namespace Test
                 _searcher.ChangeSearchStatus(Searcher.SearchStatus.process);
                 if (_calculating.IsAlive)
                 {
-                    if (_calculating.ThreadState == ThreadState.Suspended)
+                    if (_calculating.ThreadState == System.Threading.ThreadState.Suspended)
                         _calculating.Resume();
                     _calculating.Abort();
                     _calculating.Join();
@@ -111,6 +111,8 @@ namespace Test
                     _searcher.TreeChanged += _searcher_TreeChanged;
                     _calculating = new Thread(new ParameterizedThreadStart(_searcher.Search));
                 }
+                stopwatch.Reset();
+                stopwatch.Start();
                 _calculating.Start(inputData);
                 //_searcher.Search(inputData);
             }
@@ -167,16 +169,18 @@ namespace Test
             {
                 button1.Enabled = true;
                 button2.Text = "Продолжить поиск";
+                stopwatch.Stop();
                 _calculating.Suspend();
                 button2.Enabled = true;
             }
             else if (status == Searcher.SearchStatus.complete)
             {
+                stopwatch.Stop();
                 button1.Enabled = true;
                 button2.Text = "Остановить поиск";
                 if (_calculating.IsAlive)
                 {
-                    if (_calculating.ThreadState == ThreadState.Suspended)
+                    if (_calculating.ThreadState == System.Threading.ThreadState.Suspended)
                     {
                         _calculating.Resume();
                     }
@@ -196,15 +200,17 @@ namespace Test
             else if (_searcher.Status() == Searcher.SearchStatus.pause)
             {
                 _searcher.ChangeSearchStatus(Searcher.SearchStatus.process);
+                stopwatch.Start();
                 _calculating.Resume();
             }
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            fileStream.Close();
             if (_calculating.IsAlive)
             {
-                if (_calculating.ThreadState == ThreadState.Suspended)
+                if (_calculating.ThreadState == System.Threading.ThreadState.Suspended)
                 {
                     _calculating.Resume();
                 }
